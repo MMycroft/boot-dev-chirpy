@@ -3,22 +3,37 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
-	"os"
+)
+
+const (
+	_ROOT = "."
+	_PORT = 8080
 )
 
 func main() {
 	mux := http.NewServeMux()
 
-	mux.Handle("/", http.FileServer(http.Dir(".")))
+	fileServerHandler := http.FileServer(http.Dir(_ROOT))
+
+	mux.Handle("/app/", http.StripPrefix("/app", fileServerHandler))
+	mux.HandleFunc("/healthz", HandlerReadiness)
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    fmt.Sprintf(":%d", _PORT),
 		Handler: mux,
 	}
-	err := server.ListenAndServe()
+
+	log.Printf("Serving files from %s on port: %d\n", _ROOT, _PORT)
+	log.Fatal(server.ListenAndServe())
+}
+
+func HandlerReadiness(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte("OK"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "server stopped: %v\n", err)
-		os.Exit(1)
+		log.Printf("Error writing response body: %v", err)
 	}
 }
