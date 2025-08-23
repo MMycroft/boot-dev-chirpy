@@ -15,8 +15,9 @@ import (
 // HandlerCreateUser POST /api/users
 func (cfg *APIConfig) HandlerCreateUser(wr http.ResponseWriter, req *http.Request) {
 	userData := struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email       string `json:"email"`
+		Password    string `json:"password"`
+		IsChirpyRed bool   `json:"is_chirpy_red"`
 	}{}
 
 	if err := json.NewDecoder(req.Body).Decode(&userData); err != nil {
@@ -35,6 +36,7 @@ func (cfg *APIConfig) HandlerCreateUser(wr http.ResponseWriter, req *http.Reques
 	userParams := database.CreateUserParams{
 		Email:          userData.Email,
 		HashedPassword: hashedPassword,
+		IsChirpyRed:    userData.IsChirpyRed,
 	}
 
 	dbUser, err := cfg.DBQueries.CreateUser(req.Context(), userParams)
@@ -136,6 +138,37 @@ func (cfg *APIConfig) HandlerUpdateUser(wr http.ResponseWriter, req *http.Reques
 	apiUser := NewAPIUser(&dbUser, "", "")
 
 	respondWithJSON(wr, apiUser, http.StatusOK)
+}
+
+// HandlerUpgradeUser POST /api/polka/webhooks
+func (cfg *APIConfig) HandlerUpgradeUser(wr http.ResponseWriter, req *http.Request) {
+	eventData := struct {
+		Event string `json:"event"`
+		Data  struct {
+			UserID string `json:"user_id"`
+		} `json:"data"`
+	}{}
+
+	if err := json.NewDecoder(req.Body).Decode(&eventData); err != nil {
+		log.Printf("error decoding request body: %v\n", err)
+		respondWithError(wr, err, http.StatusBadRequest)
+		return
+	}
+
+	if eventData.Event != "user.upgraded" {
+		log.Printf("incorrect event")
+		respondWithJSON(wr, struct{}{}, http.StatusNoContent)
+		return
+	}
+
+	dbUser, err := cfg.DBQueries.UpgradeUser(req.Context(), true)
+	if err != nil {
+		log.Printf("error upgrading user %v: %v", dbUser, err)
+		respondWithError(wr, err, http.StatusNotFound)
+		return
+	}
+	respondWithJSON(wr, struct{}{}, http.StatusNoContent)
+	return
 }
 
 // HandlerLogin POST /api/login

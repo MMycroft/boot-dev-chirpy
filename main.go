@@ -63,6 +63,7 @@ func main() {
 	mux.HandleFunc("POST /api/refresh", cfg.HandlerRefresh)
 	mux.HandleFunc("POST /api/revoke", cfg.HandlerRevoke)
 
+	mux.HandleFunc("POST /api/polka/webhooks", cfg.HandlerUpgradeUser)
 	mux.HandleFunc("POST /api/users", cfg.HandlerCreateUser)
 	mux.HandleFunc("GET /api/users", cfg.HandlerGetUsers)
 	mux.HandleFunc("GET /api/users/{userID}", cfg.HandlerGetUser)
